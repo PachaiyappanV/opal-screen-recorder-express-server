@@ -6,6 +6,16 @@ const http = require("http");
 const app = express();
 const fs = require("fs");
 const { Readable } = require("stream");
+const axios = require("axios");
+const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
+
+const s3 = new S3Client({
+  region: process.env.AWS_BUCKET_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
 
 const server = http.createServer(app);
 
@@ -18,7 +28,7 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
   },
 });
-const recordedChunks = [];
+let recordedChunks = [];
 io.on("connection", (socket) => {
   console.log("🟢 Socket Is Connected");
 
@@ -36,7 +46,33 @@ io.on("connection", (socket) => {
     });
   });
 
-  socket.on("process-video", (data) => {});
+  socket.on("process-video", (data) => {
+    recordedChunks = [];
+
+    fs.readFile("temp_upload/" + data.fileName, async (err, file) => {
+      const processing = await axios.post(
+        `${process.env.NEXT_API_HOST}recording/${data.userId}/processing`
+      );
+
+      if (processing.data.status !== 200)
+        return console.log(
+          "🔴 Error: Something went wrong with creating the processing file"
+        );
+
+      const Key = data.fileName;
+      const Bucket = process.env.BUCKET_NAME;
+      const ContentType = "video/webm";
+
+      const command = new PutObjectCommand({
+        Key,
+        Bucket,
+        ContentType,
+        Body: file,
+      });
+
+      const fileStatus = await s3.send(command);
+    });
+  });
 
   socket.on("disconnect", () => {
     console.log("🟢 Socket is disconnected");
