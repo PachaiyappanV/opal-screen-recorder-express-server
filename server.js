@@ -22,7 +22,19 @@ const recordedChunks = [];
 io.on("connection", (socket) => {
   console.log("🟢 Socket Is Connected");
 
-  socket.on("video-chunks", async (data) => {});
+  socket.on("video-chunks", async (data) => {
+    const writestream = fs.createWriteStream("temp_upload/" + data.fileName);
+    recordedChunks.push(data.chunks);
+    const videoBlob = new Blob(recordedChunks, {
+      type: "video/webm; codecs=vp9",
+    });
+
+    const buffer = Buffer.from(await videoBlob.arrayBuffer());
+    const readStream = Readable.from(buffer);
+    readStream.pipe(writestream).on("finish", () => {
+      console.log("🟢 Chunk Saved");
+    });
+  });
 
   socket.on("process-video", (data) => {});
 
