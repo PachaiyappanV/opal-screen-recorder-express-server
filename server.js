@@ -8,6 +8,7 @@ const fs = require("fs");
 const { Readable } = require("stream");
 const axios = require("axios");
 const { S3Client, PutObjectCommand } = require("@aws-sdk/client-s3");
+const { extractAudioAndCompress } = require("./utils");
 
 const s3 = new S3Client({
   region: process.env.AWS_BUCKET_REGION,
@@ -33,7 +34,7 @@ io.on("connection", (socket) => {
   console.log("🟢 Socket Is Connected");
 
   socket.on("video-chunks", async (data) => {
-    const writestream = fs.createWriteStream("temp_upload/" + data.fileName);
+    const writestream = fs.createWriteStream("temp_video/" + data.fileName);
     recordedChunks.push(data.chunks);
     const videoBlob = new Blob(recordedChunks, {
       type: "video/webm; codecs=vp9",
@@ -47,9 +48,11 @@ io.on("connection", (socket) => {
   });
 
   socket.on("process-video", (data) => {
+    extractAudioAndCompress(data.fileName);
     recordedChunks = [];
 
-    fs.readFile("temp_upload/" + data.fileName, async (err, file) => {
+    // upload video to s3
+    fs.readFile("temp_video/" + data.fileName, async (err, file) => {
       const processing = await axios.post(
         `${process.env.NEXT_API_HOST}recording/${data.userId}/processing`
       );
