@@ -10,11 +10,11 @@ const extractAudioAndCompress = (fileName) => {
       .noVideo()
       .audioBitrate("64k") // Compress audio
       .on("end", () => {
-        console.log("Audio extracted and compressed successfully!");
+        console.log("🟢 Audio extracted and compressed successfully!");
         resolve(finalAudio); // Resolve with output file path
       })
       .on("error", (err) => {
-        console.error("Error:", err);
+        console.log("🔴 Error:", err);
         reject(err);
       })
       .run();
